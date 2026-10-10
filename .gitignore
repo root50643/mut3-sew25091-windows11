@@ -46,3 +46,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Retain only the exact Microsoft prerequisite archive bundled with this guide.
+!/ps2DLC.zip

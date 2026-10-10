@@ -35,6 +35,8 @@
 
 **如何處理。** 啟用 NetFx3，從 Microsoft 官方來源取得 `ps2DLC.zip`，核對固定 SHA-256 後完整解壓。以 64 位元及 32 位元 Windows PowerShell 分別執行原始 `loadGAC.ps1`；操作前保存它會涉及的四項 `ExecutionPolicy` 登錄值，結束後恢復原始存在狀態、型別及值。
 
+**套件來源與備份。** 專案根目錄收錄本次使用的 [ps2DLC.zip 原檔備份](../ps2DLC.zip)，`5,916,333` bytes（`5.642 MiB`），沒有重新壓縮或修改。原始來源為 [Microsoft 官方下載位置](https://download.microsoft.com/download/2b37839b-e146-465a-a78c-c9066609c553/ps2DLC.zip)，用途見 [官方暫時方案](https://support.microsoft.com/en-us/servicing/os/windows/docs/2025/08/powershell-2-0-removal-from-windows)。這是 Microsoft 第三方套件，本專案不將其宣稱為開源，也不替它新增授權。新入口先核對 `C:\MUT-Install\ps2DLC.zip` 快取；不存在才使用專案根目錄備份，兩處都不存在才從官方下載。每一路徑都以以下固定雜湊核對；已有檔案雜湊不符時停止。NetFx3 仍可能需要 Windows Update，附帶此 ZIP 不代表全程離線。
+
 ```text
 ps2DLC.zip SHA-256
 D9812E7BE1F72FF49D73F3179E207AA0000852D9D0EFD92455AD376FAD5D9B7C
@@ -160,4 +162,4 @@ SQL 查詢使用本機 shared memory（`lpc:`）與管理員 Windows 整合驗�
 
 新版清理入口還加入現行引擎版本與資料保護檢查：Setup 登錄的服務版本為 `12.1.4100.1`，與引擎回報的 `12.0.4100.1` 是不同欄位；兩者分別核對。停止中的服務若已有正常服務或使用者資料庫跡象，也不會僅憑舊失敗日誌就獲准清理。
 
-報告與截圖可以放入 GitHub；安裝包、原始日誌、機器名稱、使用者路徑與潛在車輛資料留在本機。完整歷史快照見 [安裝調查紀錄](installation-history.md)，其中「尚未完成」等語句描述各輪當時的狀態，不取代本報告的最終驗收結果。
+報告、截圖及上述 [ps2DLC.zip 原檔備份](../ps2DLC.zip) 隨專案保存在 GitHub；原廠 `SEW25091.zip`、原始日誌、機器名稱、使用者路徑與潛在車輛資料留在本機。完整歷史快照見 [安裝調查紀錄](installation-history.md)，其中「尚未完成」等語句描述各輪當時的狀態，不取代本報告的最終驗收結果。

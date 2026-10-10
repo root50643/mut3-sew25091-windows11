@@ -10,7 +10,7 @@
 2. SQL Server 2014 SP1 的服務無法讀寫指定的 MDAC 通訊協定登錄鍵。
 3. 傳統版由 launcher 開啟 `start.js` 時，需要先在 Windows 指定 **Microsoft Windows Based Script Host** 並選「一律／Always」。
 
-本專案提供單一安裝入口、教學、截圖及本次使用與審查的輔助腳本。原廠安裝包需自行取得；Microsoft 補充元件由腳本從官方來源下載，兩者均不隨專案散布。原因與修復結果見 [Windows 11 安裝問題報告](docs/windows11-installation-report.md)；先前每輪的失敗與重試細節保留於 [安裝調查紀錄](docs/installation-history.md)。
+本專案提供單一安裝入口、教學、截圖及本次使用與審查的輔助腳本。原廠 `SEW25091.zip` 需自行取得；根目錄另保留本次驗證過的 Microsoft 官方 [ps2DLC.zip](ps2DLC.zip) 原檔備份，隨專案一起下載，內容未修改。這是 Microsoft 第三方套件，本專案不將它宣稱為開源，也不替它新增授權。原因與修復結果見 [Windows 11 安裝問題報告](docs/windows11-installation-report.md)；先前每輪的失敗與重試細節保留於 [安裝調查紀錄](docs/installation-history.md)。
 
 ## 先看這裡：一鍵引導安裝
 
@@ -31,14 +31,15 @@
 | `Install-MUT.cmd` 與完整 `scripts/` | 必要 | 保持專案原本相對位置；`scripts` 內的 PS1、PSM1、CMD 與 `oneclick-helper-hashes.json` 都保留 |
 | `SEW25091.zip` | 新安裝／清理重試必要 | 放在 `Install-MUT.cmd` 旁；使用第 1 節相同 SHA-256 的原廠安裝包 |
 | `README.md` 與 `docs/` | 建議保留 | 提供離線教學、圖片與問題報告 |
-| `ps2DLC.zip` | 選用 | 腳本可自動下載；手動準備時放在專案根目錄或 `C:\MUT-Install`，須符合第 3.2 節雜湊 |
+| [ps2DLC.zip](ps2DLC.zip) | 專案已附原檔備份 | 保留在專案根目錄；`5,916,333` bytes（`5.642 MiB`），固定雜湊見第 3.2 節；缺少時腳本可從 Microsoft 官方下載 |
 
-另外需要系統管理員權限與可用磁碟空間。下載 Microsoft 補充套件或 NetFx3 時需要網路；不需另外準備 SQL 安裝包或 PowerShell 7。
+另外需要系統管理員權限與可用磁碟空間。已附 `ps2DLC.zip` 不代表可全程離線：NetFx3 仍可能需要 Windows Update；補充套件缺少且需從官方下載時也需要網路。不需另外準備 SQL 安裝包或 PowerShell 7。
 
 ```text
 本專案資料夾\
 ├─ Install-MUT.cmd
 ├─ SEW25091.zip          ← 自行取得，檔名必須相同
+├─ ps2DLC.zip            ← 專案已附，Microsoft 官方原檔備份
 ├─ README.md
 ├─ scripts\             ← 保留完整內容
 └─ docs\
@@ -68,7 +69,7 @@
 
 ![先前實測，由使用者提供：原廠地區畫面選 Other](docs/images/02-select-other.png)
 
-在安裝分支中，主控從 [Microsoft 官方暫時方案](https://support.microsoft.com/en-us/servicing/os/windows/docs/2025/08/powershell-2-0-removal-from-windows) 取得固定版本 `ps2DLC.zip`，檢查雜湊，再執行與核驗。已有相符快取時沿用，不重複下載。下載失敗時依錯誤視窗指示重試；也可預先將第 3.2 節所列相同雜湊的檔案放在專案根目錄或 `C:\MUT-Install\ps2DLC.zip`。NetFx3 仍可能需要 Windows Update，因此預放 ZIP 不代表整個流程可離線執行。
+在安裝分支中，主控依序尋找 `ps2DLC.zip`：先使用 `C:\MUT-Install\ps2DLC.zip` 快取；沒有快取才讀取本專案根目錄的 [原檔備份](ps2DLC.zip)；兩處都沒有才從 [Microsoft 官方下載位置](https://download.microsoft.com/download/2b37839b-e146-465a-a78c-c9066609c553/ps2DLC.zip) 取得。每個來源都必須通過第 3.2 節的固定 SHA-256 核對，才會解壓與執行；已有檔案但雜湊不符時會停止，不會跳過檢查或自動換用另一份。套件用途見 [Microsoft 官方暫時方案](https://support.microsoft.com/en-us/servicing/os/windows/docs/2025/08/powershell-2-0-removal-from-windows)。NetFx3 仍可能需要 Windows Update，因此附帶 ZIP 不代表整個流程可離線執行。
 
 ### C. 重啟接續與失敗重裝
 
@@ -253,7 +254,11 @@ Get-WindowsOptionalFeature -Online |
 
 ### 3.2 準備官方補充元件
 
-1. 從上方 Microsoft 官方文章的 **Temporary mitigation** 下載 `ps2DLC.zip`，放在 `C:\MUT-Install\ps2DLC.zip`。
+本專案附帶的 [ps2DLC.zip](ps2DLC.zip) 為本次使用的 Microsoft 官方原檔備份，大小 `5,916,333` bytes（`5.642 MiB`），沒有重新壓縮或修改內容。原始來源為 [Microsoft 官方下載](https://download.microsoft.com/download/2b37839b-e146-465a-a78c-c9066609c553/ps2DLC.zip)，用途與操作說明見 [官方文章的 Temporary mitigation](https://support.microsoft.com/en-us/servicing/os/windows/docs/2025/08/powershell-2-0-removal-from-windows)。它是 Microsoft 第三方套件；本專案不宣稱它是開源，也不替它新增授權。
+
+一鍵入口會自動處理來源與解壓；只有採用進階手動流程時，才執行以下步驟：
+
+1. 將專案根目錄的 `ps2DLC.zip` 複製到 `C:\MUT-Install\ps2DLC.zip`；也可從上方 Microsoft 官方下載位置取得。若目的地已有檔案，先核對雜湊，不直接覆蓋未知內容。
 2. 計算 `Get-FileHash -LiteralPath 'C:\MUT-Install\ps2DLC.zip' -Algorithm SHA256`，本次審查版本應為下列值。
 3. 完整解壓至 `C:\MUT-Install\ps2DLC`，保留 DLL、資源及登錄檔。ZIP 另含一層目錄，預期可找到 `C:\MUT-Install\ps2DLC\ps2DLC\loadGAC.ps1`。
 
@@ -468,13 +473,14 @@ ACL 還原功能會先要求同一電腦、實例、owner 與目前 DACL 符合�
 - `docs/installation-history.md`：修復過程與前次狀態快照，歷史待辦不代表最終結果。
 - `docs/images/`：原始 PNG／JPEG。`reference-` 是使用者最初提供的參考圖；`02` 至 `10` 是使用者於第一輪提供的實測過程；`24` 為使用者提供的本次傳統版成功畫面；其餘數字圖片由本次操作擷取，圖說標示所屬階段。
 - `scripts/`：新的主控及本次使用與審查的既有輔助檔案；原始位元組由 `.gitattributes` 保留。
-- `.gitignore`：排除 ZIP、原廠 EXE／DLL、解壓內容、原始日誌、登錄匯出及 `.local-evidence`。
+- [ps2DLC.zip](ps2DLC.zip)：未修改的 Microsoft 官方第三方套件備份，大小與 SHA-256 見第 3.2 節；不屬於本專案自製程式碼。
+- `.gitignore`：排除原廠 `SEW25091.zip`、其他安裝封存檔、原廠 EXE／DLL、解壓內容、原始日誌、登錄匯出及 `.local-evidence`；僅根目錄的 `ps2DLC.zip` 列為 ZIP 例外。
 
 使用者最初提供的兩個圖示只用於辨識，不能取代本次程式畫面：
 
 ![使用者提供的參考圖：兩個桌面捷徑](docs/images/reference-desktop-icons.png)
 
-公開內容僅包含教學、輔助腳本、測試與圖片。每次提交前仍應檢查檔案清單，不上傳安裝包或含機器名稱、使用者資料、車輛資訊及憑證的原始紀錄。
+公開內容包含教學、輔助腳本、測試、圖片及上述 `ps2DLC.zip` 原檔備份。每次提交前仍應檢查檔案清單，不上傳原廠 `SEW25091.zip` 或含機器名稱、使用者資料、車輛資訊及憑證的原始紀錄。
 
 ## 11. 參考資料
 
