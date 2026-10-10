@@ -1,0 +1,48 @@
+# Proprietary installers and archives (documentation/images are retained).
+*.[zZ][iI][pP]
+*.[7][zZ]
+*.[rR][aA][rR]
+*.[iI][sS][oO]
+*.[cC][aA][bB]
+*.[eE][xX][eE]
+*.[mM][sS][iI]
+*.[mM][sS][pP]
+*.[dD][lL][lL]
+
+# Extracted vendor content and local installation work.
+/SEW*/
+/MUT-Install/
+/INSTALL/
+/installers/
+/downloads/
+/ps2DLC/
+/extracted/
+
+# Raw evidence may contain usernames, machine names, vehicle data, or credentials.
+/logs/
+/raw-logs/
+/evidence/
+/.local-evidence/
+/artifacts/
+/backups/
+/scratch/
+/temp/
+/tmp/
+*.log
+*.etl
+*.dmp
+*.evtx
+*.reg
+*.bak
+*.tmp
+*.temp
+*~
+
+# Local tooling and desktop metadata.
+__pycache__/
+.venv/
+.cache/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

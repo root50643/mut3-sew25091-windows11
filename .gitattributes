@@ -1,0 +1,6 @@
+# Preserve the exact reviewed bytes used by the helper SHA-256 guards.
+scripts/*.ps1 -text
+scripts/*.cmd -text
+scripts/*.psm1 -text
+/Install-MUT.cmd -text
+tests/*.ps1 -text
