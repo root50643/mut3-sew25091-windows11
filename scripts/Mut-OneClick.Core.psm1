@@ -56,8 +56,13 @@ function Get-MutZipManifest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
-        [Parameter(Mandatory=$true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedHash
+        [Parameter(Mandatory=$true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedHash,
+        [string]$ExpectedRoot
     )
+    $allowedRoots = @('SEW25091','SEW26061-00','ps2DLC')
+    if ($PSBoundParameters.ContainsKey('ExpectedRoot') -and $ExpectedRoot -cnotin $allowedRoots) {
+        throw "Unsupported expected archive root: $ExpectedRoot"
+    }
     $fullArchive = Get-MutFullPath $ArchivePath
     Assert-MutNoReparsePath $fullArchive
     if (-not (Test-Path -LiteralPath $fullArchive -PathType Leaf)) { throw "Archive is missing: $fullArchive" }
@@ -86,7 +91,10 @@ function Get-MutZipManifest {
                     throw "Unsafe Windows ZIP path: $($entry.FullName)"
                 }
             }
-            if ($parts[0] -cnotin @('SEW25091','ps2DLC')) { throw "Unexpected archive root: $($parts[0])" }
+            if ($parts[0] -cnotin $allowedRoots) { throw "Unexpected archive root: $($parts[0])" }
+            if ($PSBoundParameters.ContainsKey('ExpectedRoot') -and $parts[0] -cne $ExpectedRoot) {
+                throw "Archive root mismatch: expected $ExpectedRoot; actual $($parts[0])"
+            }
             if ($null -eq $rootName) { $rootName = $parts[0] }
             if ($rootName -cne $parts[0]) { throw 'ZIP has more than one top-level directory.' }
             if (-not $seen.Add($name)) { throw "Duplicate ZIP path (case-insensitive): $name" }
@@ -177,9 +185,12 @@ function Expand-MutVerifiedArchive {
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
         [Parameter(Mandatory=$true)][string]$DestinationParent,
-        [Parameter(Mandatory=$true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedHash
+        [Parameter(Mandatory=$true)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string]$ExpectedHash,
+        [string]$ExpectedRoot
     )
-    $manifest = Get-MutZipManifest -ArchivePath $ArchivePath -ExpectedHash $ExpectedHash
+    $manifestArguments = @{ ArchivePath = $ArchivePath; ExpectedHash = $ExpectedHash }
+    if ($PSBoundParameters.ContainsKey('ExpectedRoot')) { $manifestArguments.ExpectedRoot = $ExpectedRoot }
+    $manifest = Get-MutZipManifest @manifestArguments
     $parent = Get-MutFullPath $DestinationParent
     Assert-MutNoReparsePath $parent
     $target = Get-MutContainedPath $parent $manifest.RootName

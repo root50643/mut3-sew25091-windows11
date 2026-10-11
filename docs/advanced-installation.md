@@ -1,5 +1,7 @@
 # SEW25091：進階安裝、排錯與驗證紀錄
 
+> 本文件保留 SEW25091 的操作與實測歷史。目前預設入口只準備前置元件，主程式由人工安裝，新版操作請依 [README](../README.md) 與 [調查報告](sew26061-upgrade-report.md)。舊整合安裝／清理命令供歷史排錯參考，不能當成現行安裝步驟；`Install-Mut.ps1 -Mode Auto` 已改為轉交前置元件入口。若需針對仍在使用的 SEW25091 執行唯讀安裝檢查，請加入 `-Release SEW25091`。
+
 一般安裝請閱讀 [一般使用者操作指南](../README.md)。本文件供進階排錯、手動安裝與驗證紀錄查閱，保留完整操作命令、測試結果及實測證據；文中命令仍依各節指示從專案根目錄或指定的 Windows 工作目錄執行，不是從 docs 資料夾執行。
 
 本教學記錄 `SEW25091.zip` 在 Windows 11 原生安裝 **M.U.T.-3（傳統版）**與 **M.U.T.-3 SE** 的實測方法，包含 PowerShell 前置元件、SQL 安裝失敗重試，以及傳統版按啟動後沒有畫面的處理。
@@ -14,15 +16,15 @@
 
 本專案提供單一安裝入口、教學、截圖及本次使用與審查的輔助腳本。原廠 `SEW25091.zip` 需自行取得；根目錄另保留本次驗證過的 Microsoft 官方 [ps2DLC.zip](../ps2DLC.zip) 原檔備份，隨專案一起下載，內容未修改。這是 Microsoft 第三方套件，本專案不將它宣稱為開源，也不替它新增授權。原因與修復結果見 [Windows 11 安裝問題報告](windows11-installation-report.md)；先前每輪的失敗與重試細節保留於 [安裝調查紀錄](installation-history.md)。
 
-## 先看這裡：一鍵引導安裝
+## SEW25091 一鍵引導安裝與歷史驗證
 
-**一般使用者請從 [Install-MUT.cmd](../Install-MUT.cmd) 開始。** 它會串接前置元件、原廠安裝、指定 SQL 修復與重啟後檢查。這是「單一入口引導」；Windows UAC、原廠選項、驅動精靈及程式首次啟動仍需要您按畫面確認。
+本節記錄舊版入口的流程。**一般使用者安裝新版請回到 [README](../README.md)**；目前雙擊 [Install-MUT.cmd](../Install-MUT.cmd) 的目標是 SEW26061-00。需要操作 SEW25091 時，請使用下一節明確指定舊版的命令。Windows UAC、原廠選項、驅動精靈及程式首次啟動仍需要您按畫面確認。
 
 **測試範圍：** 底層修復流程已在本機實際完成雙版本安裝。新整合入口另做隔離流程測試、目前成功主機的唯讀檢查及健康既有安裝的 `Auto` 驗收；**尚未重新執行新入口的全新安裝或失敗清理實機測試**，以免移除現有可用系統。下方的原廠成功截圖來自先前實際安裝，不代表已使用新入口重跑完整安裝。
 
 **新入口檢查結果：2026-10-10 的 89／89 隔離測試通過。2026-10-11 00:11 檢查曾回傳待重啟 `3010`；00:24 完成重啟後，以原始 CMD 啟動的 `Auto` 於 00:28 通過系統與 SQL 檢查，00:35 完成兩版本主畫面的人工作答，最終退出碼 `0`、進度為 `Completed`。** 詳見下方 F 節。
 
-### A. 放好檔案，再雙擊
+### A. 放好舊版檔案，明確指定 SEW25091
 
 **操作位置：** 檔案總管中已完整下載的本專案資料夾。保留 `scripts`，不要只下載單一 CMD。
 
@@ -49,8 +51,15 @@
 
 1. 儲存所有工作。若本機已有 M.U.T. 資料或 SQL 資料庫，先依原廠方式備份；日誌和登錄備份不等於資料庫備份。
 2. 將 `SEW25091.zip` 放在 `Install-MUT.cmd` 旁。資料夾可含中文或空白；腳本會使用固定英文工作目錄 `C:\MUT-Install`。
-3. 雙擊 **Install-MUT.cmd**；Windows UAC 出現時按「是」。入口會選擇 Windows 內建的 **64 位元 PowerShell 5.1**，不需安裝 PowerShell 7。
+3. 在專案根目錄的 PowerShell 執行下方命令，明確選擇 SEW25091；Windows UAC 出現時按「是」。使用 Windows 內建的 **64 位元 PowerShell 5.1**，不需安裝 PowerShell 7。
 4. 保持主控與原廠視窗開啟。第一次核對約 1.86 GB 安裝包及完整解壓需要時間；依主控訊息等候，不要重複開啟。
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+    -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Install-Mut.ps1' -Mode Auto -Release SEW25091
+```
+
+重啟後仍執行同一條指定舊版的命令；不要改為雙擊預設新版的 CMD。
 
 **預期結果：** 先檢查目前系統，再決定進入驗收、安裝或停止檢查。健康的既有安裝不需 ZIP，也不會重新安裝。需要來源時，腳本只接受第 1 節列出的固定 SHA-256；既有解壓內容須核對相符，不覆蓋未知來源。
 
@@ -65,7 +74,7 @@
 | M.U.T.-III Version Checker | 按「是／Yes」 | 顯示地區選擇 |
 | 地區選擇 | 選 **Other** → **Install** | 使用本次驗證的 `EXP` 安裝流程 |
 | 驅動程式精靈 | 依序按 **Next／下一步**、**Finish／完成** | 原廠繼續安裝；驅動安裝完成不代表 VCI 已驗證 |
-| 重新啟動提示 | 儲存工作，從 Windows 選 **重新啟動** | 重開後再次雙擊同一個 `Install-MUT.cmd` 接續 |
+| 重新啟動提示 | 儲存工作，從 Windows 選 **重新啟動** | 重開後再次執行 A 節指定 `-Release SEW25091` 的命令接續 |
 | `.js` 的開啟程式選擇 | 選 **Microsoft Windows Based Script Host** → **一律／Always** | 從桌面再次開啟傳統版；詳見第 7.2 節 |
 | 雙版本主畫面確認 | 實際開啟兩程式，核對下面的版本後再確認 | 另外記錄使用者的主畫面驗收 |
 
@@ -115,7 +124,7 @@
 | 退出碼 | 意義 | 如何處理 |
 | --- | --- | --- |
 | `0` | 目前模式檢查通過 | `Check` 只代表系統檢查通過；仍須實際核對兩程式 |
-| `3010` | 等待重新啟動 | 儲存工作並重新啟動，再雙擊同一入口 |
+| `3010` | 等待重新啟動 | 儲存工作並重新啟動，再執行相同版本的命令 |
 | `1223` | 使用者取消 | UAC 或其他確認已取消，處理完成後可重新執行 |
 | `2` | 需要人工確認／檢查 | 按視窗列出的原因處理，保留日誌，不強行略過 |
 | `1` | 執行失敗 | 依原始錯誤與日誌排查，不會無限重試 |
@@ -124,7 +133,7 @@
 
 ```powershell
 & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-    -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Install-Mut.ps1' -Mode Check
+    -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Install-Mut.ps1' -Mode Check -Release SEW25091
 ```
 
 需要不彈視窗的檢查（例如收集報告）可在命令最後加上 `-NoUI`。`-NoUI` 僅適用於 `-Mode Check`；一般安裝使用預設的 `Auto` 模式。Check 只讀取系統並寫出本次報告，不下載、不安裝、不清理、不修改系統設定。命令的 `-ExecutionPolicy Bypass` 僅用於此次 PowerShell 行程，不永久設定執行原則。

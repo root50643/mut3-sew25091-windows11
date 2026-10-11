@@ -93,6 +93,8 @@ function Invoke-InventoryFixture([object[]]$Processes) {
     return @(Get-MutInstallerProcesses)
 }
 function Invoke-AutoFixture([ValidateSet('Healthy','SameBoot','LaterBoot','OwnedBusy','UnknownBusy','PendingRestart','InstallingUnknown','UnknownRegistry','LegacyFiles','NativeRegistry','WrongClassic','MissingRequired')][string]$Scenario) {
+    $script:Profile=Get-MutMediaProfile -Release SEW25091
+    $script:TaskRoot='C:\MUT-Install'
     $script:RunRoot = New-CaseFolder
     $script:StatePath = Join-Path $script:RunRoot 'state.json'
     $script:MediaHash = '1B1740A1834B0AF447A17BFFB2A220671728FBC9C8CB851C5F01859912427D03'
@@ -110,6 +112,7 @@ function Invoke-AutoFixture([ValidateSet('Healthy','SameBoot','LaterBoot','Owned
     Write-MutState -Path $script:StatePath -State $state
     $effects = New-Object 'System.Collections.Generic.List[string]'
     function Get-MutBootUtc { return '2026-10-10T02:00:00Z' }
+    function Test-MutUpgradeRequested { return $false }
     function Get-MutInstallerProcesses {
         if ($Scenario -eq 'UnknownBusy') { return [pscustomobject]@{ Name = 'setup.exe'; CreationDate = [datetime]'2026-10-10T01:00:00Z' } }
         if ($Scenario -eq 'OwnedBusy') { return [pscustomobject]@{ Name = 'setup.exe'; CreationDate = [datetime]'2026-10-10T01:00:00Z'; ExecutablePath = 'C:\MUT-Install\SEW25091\INSTALL\setup.exe' } }
@@ -160,6 +163,7 @@ try {
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Import-Module $corePath -Force -DisableNameChecking
+    Import-Module (Join-Path $projectRoot 'scripts\Mut-MediaProfiles.psm1') -Force
 
     Invoke-Case 'PowerShell syntax: all published PS1 and PSM1 files' {
         foreach ($source in @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'scripts') -File | Where-Object { $_.Extension -in @('.ps1', '.psm1') })) {

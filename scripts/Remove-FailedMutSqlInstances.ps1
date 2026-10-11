@@ -1,8 +1,8 @@
 ﻿[CmdletBinding()]
-param([switch]$InspectOnly)
+param([switch]$InspectOnly,[ValidateSet('SEW25091','SEW26061-00')][string]$Release='SEW25091')
 $ErrorActionPreference='Stop'
 $taskRoot='C:\MUT-Install'
-$mediaRoot=Join-Path $taskRoot 'SEW25091'
+$mediaRoot=Join-Path $taskRoot $Release
 $sqlLogRoot='C:\Program Files (x86)\Microsoft SQL Server\120\Setup Bootstrap\Log'
 $runRoot=Join-Path $taskRoot ('sql-instance-removal-logs\'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 $statusPath=Join-Path $taskRoot 'sql-instance-removal-status.json'
@@ -31,7 +31,7 @@ function Test-PendingRestart {
 function Assert-InstallersIdle {
     $busy=@(Get-CimInstance Win32_Process | Where-Object {
         $_.Name -match '^(MUT3INSTALL|MUT3UNINSTALL|MT3NNSTLL|Mut3Check|MUT3_SE|MUT3_Launcher)\.exe$' -or
-        ($_.Name -match '^(setup|setup100|scenarioengine|en_sql_server_2014_express_with_service_pack_1_x86_x64_6673935)\.exe$' -and (!$_.ExecutablePath -or $_.ExecutablePath -match '(?i)\\SEW25091\\|\\Microsoft SQL Server\\|en_sql_server_2014')) -or
+        ($_.Name -match '^(setup|setup100|scenarioengine|en_sql_server_2014_express_with_service_pack_1_x86_x64_6673935)\.exe$' -and (!$_.ExecutablePath -or $_.ExecutablePath -match '(?i)\\(?:SEW25091|SEW26061-00)\\|\\Microsoft SQL Server\\|en_sql_server_2014')) -or
         ($_.Name -ieq 'cmd.exe' -and $_.CommandLine -match '(?i)\\(UNINST|DEL_SE)\.bat\b')
     })
     if($busy.Count){throw 'A MUT or SQL installer is still active. No process was stopped.'}

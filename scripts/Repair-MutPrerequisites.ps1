@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([ValidateSet('SEW25091','SEW26061-00')][string]$Release='SEW25091')
 $ErrorActionPreference = 'Stop'
 $taskRoot = 'C:\MUT-Install'
 $packageRoot = Join-Path $taskRoot 'ps2DLC\ps2DLC'
@@ -24,7 +24,7 @@ try {
     $transcribing = $true
     Save-Status 'checking' 'Checking installer state and prerequisite files.'
     $active = @(Get-CimInstance Win32_Process | Where-Object {
-        $_.ExecutablePath -and $_.ExecutablePath.StartsWith('C:\MUT-Install\SEW25091\', [StringComparison]::OrdinalIgnoreCase) -and
+        $_.ExecutablePath -and $_.ExecutablePath -match '^C:\\MUT-Install\\(?:SEW25091|SEW26061-00)\\' -and
         $_.Name -match '^(setup|MUT3INSTALL|MT3NNSTLL|Mut3Check)\.exe$'
     })
     if ($active.Count -gt 0) { throw 'A MUT installer is still running. Close this failed installation before retrying prerequisite repair.' }

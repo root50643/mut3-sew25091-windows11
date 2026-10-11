@@ -1,14 +1,19 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('SEW25091','SEW26061-00')][string]$Release='SEW25091',
+    [string]$UpgradeManifest,
+    [string]$UpgradeManifestHash
+)
 $ErrorActionPreference='Stop'
 $taskRoot='C:\MUT-Install'
-$mediaRoot=Join-Path $taskRoot 'SEW25091'
+$mediaRoot=Join-Path $taskRoot $Release
 $entryPath=Join-Path $mediaRoot 'MUT3_Install.bat'
 $repairPath=Join-Path $PSScriptRoot 'Repair-MutSqlLegacyAcl.ps1'
 $sqlLogRoot='C:\Program Files (x86)\Microsoft SQL Server\120\Setup Bootstrap\Log'
 $runRoot=Join-Path $taskRoot ('sql-acl-coordinator-logs\'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 $statusPath=Join-Path $taskRoot 'sql-acl-coordinator-status.json'
 $exitCode=1
+$preservedSql=$false
 $targets=@{
     MUT3=[pscustomobject]@{log=$null; attempted=$false; patched=$false; patchedUtc=$null; completed=$false}
     CAESARCOMPDB=[pscustomobject]@{log=$null; attempted=$false; patched=$false; patchedUtc=$null; completed=$false}
@@ -73,6 +78,25 @@ function Find-NewMdacError([string]$folder,[datetime]$launchUtc) {
     }
     return $null
 }
+function Test-PreservedSqlReady {
+    # A reused engine needs fresh live evidence. Full application completion is
+    # still decided by the parent using this run's vendor log and a later reboot.
+    foreach($instance in @('MUT3','CAESARCOMPDB')){
+        $service=Get-Service -Name ('MSSQL$'+$instance) -ErrorAction SilentlyContinue
+        if(!$service -or $service.Status -ne 'Running'){return $false}
+        $connection=New-Object Data.SqlClient.SqlConnection('Data Source=lpc:.\'+$instance+';Initial Catalog=master;Integrated Security=True;Connect Timeout=3;Pooling=False')
+        try{
+            $connection.Open()
+            $command=$connection.CreateCommand();$command.CommandTimeout=5
+            try{
+                $command.CommandText="SELECT CONVERT(nvarchar(128),SERVERPROPERTY('ProductVersion'))"
+                if([string]$command.ExecuteScalar() -cne '12.0.4100.1'){throw 'Preserved SQL version changed.'}
+            }finally{$command.Dispose()}
+        }catch [Data.SqlClient.SqlException]{return $false}
+        finally{$connection.Dispose()}
+    }
+    return $true
+}
 try {
     $principal=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if(!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) -or ![Environment]::Is64BitProcess -or $PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5){throw 'Elevated 64-bit Windows PowerShell 5.1 is required.'}
@@ -82,15 +106,30 @@ try {
         'Mut3Check.exe'='D5992A062AB03318F00B7948D7CE9467ADD3B8BE2435543C1CCF009D9C47FBA1'
         'BAT\NEW.BAT'='15081C5EF1EBBB1E795E6103DEFC7E294B66AC7DE0AD36ED5BCC4A24299BC5E1'
     }
+    if($Release -eq 'SEW26061-00'){
+        $expectedHashes['MUT3_Install.bat']='D1CCC586AF4378EA8183E7BEFA453334015B36423DC437733D22395625759467'
+        $expectedHashes['BAT\NEW.BAT']='686C76EC251A58C4EC766FD401F16EE650944A35AA5450C7B3CAA15E946E11E8'
+    }
     foreach($relative in $expectedHashes.Keys){if((Get-FileHash -LiteralPath (Join-Path $mediaRoot $relative) -Algorithm SHA256).Hash -ne $expectedHashes[$relative]){throw 'The original installation entry files differ from the reviewed media.'}}
     if((Get-FileHash -LiteralPath $repairPath -Algorithm SHA256).Hash -ne '043153444536CDDABFC9ABA3DFEE0113A71146C38D2B8D277BD609313314B1E6'){throw 'The scoped repair helper differs from the reviewed version.'}
     $services=@(Get-CimInstance Win32_Service | Where-Object {$_.Name -in @('MSSQL$MUT3','MSSQL$CAESARCOMPDB')})
-    if($services.Count){throw 'Uninstall the failed MUT3 and CAESARCOMPDB instances first; target services still exist.'}
+    if($UpgradeManifest){
+        if($Release -ne 'SEW26061-00'){throw 'A backed-up upgrade is only reviewed for SEW26061-00.'}
+        if($UpgradeManifestHash -cnotmatch '^[A-F0-9]{64}$' -or (Get-FileHash -LiteralPath $UpgradeManifest -Algorithm SHA256).Hash -cne $UpgradeManifestHash){throw 'The upgrade backup manifest changed or its recorded hash is missing.'}
+        Import-Module (Join-Path $PSScriptRoot 'Mut-Upgrade.psm1') -Force
+        $backup=Assert-MutUpgradeBackup -ManifestPath $UpgradeManifest
+        if($services.Count){
+            if($services.Count -ne 2){throw 'Only one preserved SQL engine exists. Review before installation.'}
+            $identity=Assert-MutPreservedSqlIdentity -Manifest $backup
+            $identity | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runRoot 'preserved-sql-before.json') -Encoding UTF8
+            $preservedSql=$true
+        }
+    }elseif($UpgradeManifestHash -or $services.Count){throw 'Target SQL services or a backup hash exist without a verified upgrade backup. No installation was launched.'}
     if(Test-Path -LiteralPath 'HKLM:\SOFTWARE\WOW6432Node\MMC\Mut3\MUT\APP\00'){throw 'The original entry would select an update path; complete the original uninstallation first.'}
     foreach($path in @('C:\MUTSW','C:\MUTSW_SE')){if(Test-Path -LiteralPath $path){throw ('Existing MUT data remains at '+$path+'. Review it before a new installation.')}}
     $busy=@(Get-CimInstance Win32_Process | Where-Object {
         $_.Name -match '^(MUT3INSTALL|MUT3UNINSTALL|MT3NNSTLL|Mut3Check|MUT3_SE|MUT3_Launcher)\.exe$' -or
-        ($_.Name -match '^(setup|en_sql_server_2014_express_with_service_pack_1_x86_x64_6673935)\.exe$' -and (!$_.ExecutablePath -or $_.ExecutablePath -match '(?i)\\SEW25091\\|\\Microsoft SQL Server\\|en_sql_server_2014'))
+        ($_.Name -match '^(setup|en_sql_server_2014_express_with_service_pack_1_x86_x64_6673935)\.exe$' -and (!$_.ExecutablePath -or $_.ExecutablePath -match '(?i)\\(?:SEW25091|SEW26061-00)\\|\\Microsoft SQL Server\\|en_sql_server_2014'))
     })
     if($busy.Count){throw 'A MUT or SQL installation process remains active; no installation was launched.'}
     foreach($pendingKey in @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending','HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')) {
@@ -107,6 +146,12 @@ try {
     $launcher=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\cmd.exe') -ArgumentList ('/d /s /c ""'+$entryPath+'""') -WorkingDirectory $mediaRoot -WindowStyle Hidden -PassThru
     [ordered]@{launchUtc=$launchUtc.ToString('o'); deadlineUtc=$deadline.ToString('o'); entry=$entryPath; launcherPid=$launcher.Id} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'launch.json') -Encoding UTF8
     while([datetime]::UtcNow -lt $deadline) {
+        if($preservedSql -and (Test-PreservedSqlReady)){
+            foreach($instance in $targets.Keys){$targets[$instance].completed=$true}
+            $exitCode=0
+            Write-Status 'sql-engines-reused' 'Both backed-up SQL engines passed fresh live checks. This does not indicate completion of the original MUT installation.'
+            break
+        }
         $folders=@(Get-ChildItem -LiteralPath $sqlLogRoot -Directory -ErrorAction SilentlyContinue | Where-Object {Test-NewLogFolder $_ $launchUtc $oldFolders})
         foreach($folder in $folders) {
             $configPath=Join-Path $folder.FullName 'ConfigurationFile.ini';$detailPath=Join-Path $folder.FullName 'Detail.txt'

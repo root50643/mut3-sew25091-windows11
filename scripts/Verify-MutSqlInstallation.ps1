@@ -4,7 +4,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('BeforeReboot', 'AfterReboot', 'Manual')]
-    [string]$Phase = 'Manual'
+    [string]$Phase = 'Manual',
+    [ValidateSet('SEW25091','SEW26061-00')][string]$Release='SEW25091'
 )
 
 Set-StrictMode -Version Latest
@@ -29,6 +30,7 @@ $findings = New-Object 'System.Collections.Generic.List[string]'
 $report = [ordered]@{
     SchemaVersion = 1
     Phase = $Phase
+    Release = $Release
     StartedAt = $startedAt.ToString('o')
     CompletedAt = $null
     EvidenceDirectory = $evidenceDirectory
@@ -146,7 +148,7 @@ try {
     # Names and executable paths only: command lines may contain vendor credentials.
     $installerProcesses = @(Get-CimInstance Win32_Process | Where-Object {
         $_.Name -match '^(MUT3Check|MUT3INSTALL|MUT3UNINSTALL|MT3NSTLL|MT3NNSTLL|MUT3_Install|setup|setup100|scenarioengine|DPInst)\.exe$' -and
-        ($_.ExecutablePath -like 'C:\MUT-Install\SEW25091\*' -or
+        ($_.ExecutablePath -match '^C:\\MUT-Install\\(?:SEW25091|SEW26061-00)\\' -or
          $_.ExecutablePath -like '*\Microsoft SQL Server\*' -or
          $_.Name -match '^(MUT3Check|MUT3INSTALL|MUT3UNINSTALL|MT3NSTLL|MT3NNSTLL)\.exe$')
     } | Select-Object Name, ProcessId, ExecutablePath)
